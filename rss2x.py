@@ -1,7 +1,7 @@
 # Name: rss2x.py
 # Version: 0.1
 # Author: drhdev
-# Description: Checks multiple RSS feeds regularly, sends tweets to corresponding Twitter accounts with title, image, and link.
+# Description: Checks multiple RSS feeds, sends tweets to corresponding Twitter accounts with title, image, and link, then exits.
 
 import os
 import sys
@@ -36,7 +36,6 @@ if '-v' in sys.argv:
 
 # Load environment variables
 load_dotenv(os.path.join(base_dir, '.env'))
-CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 1800))
 TWITTER_API_DELAY = int(os.getenv('TWITTER_API_DELAY', 30))  # Default delay after each API call (30 seconds)
 
 # Define feeds and credentials from environment variables
@@ -127,33 +126,32 @@ def post_to_twitter(api, title, link, image_url, account_name):
 
 def main():
     logger.info("Starting RSS to Twitter script...")
-    
+
     # Initialize API clients for each account in configuration
     twitter_apis = {}
     for feed_config in feeds:
         credentials = feed_config.get('twitter_credentials')
         twitter_apis[feed_config['feed_url']] = init_twitter_api(credentials)
 
-    while True:
-        for feed_config in feeds:
-            feed_url = feed_config['feed_url']
-            api = twitter_apis.get(feed_url)
+    for feed_config in feeds:
+        feed_url = feed_config['feed_url']
+        api = twitter_apis.get(feed_url)
 
-            if api:
-                try:
-                    post = get_latest_post(feed_url)
-                    if post:
-                        title = post.title
-                        link = post.link
-                        image_url = post.media_content[0]['url'] if 'media_content' in post else None
-                        logger.info(f"New post found for feed {feed_url}: {title}")
-                        post_to_twitter(api, title, link, image_url, feed_config['twitter_credentials']['account_name'])
-                except Exception as e:
-                    logger.error(f"Error processing feed {feed_url}: {e}")
-            else:
-                logger.warning(f"No valid Twitter API client for feed: {feed_url}")
+        if api:
+            try:
+                post = get_latest_post(feed_url)
+                if post:
+                    title = post.title
+                    link = post.link
+                    image_url = post.media_content[0]['url'] if 'media_content' in post else None
+                    logger.info(f"New post found for feed {feed_url}: {title}")
+                    post_to_twitter(api, title, link, image_url, feed_config['twitter_credentials']['account_name'])
+            except Exception as e:
+                logger.error(f"Error processing feed {feed_url}: {e}")
+        else:
+            logger.warning(f"No valid Twitter API client for feed: {feed_url}")
 
-        time.sleep(CHECK_INTERVAL)
+    logger.info("RSS to Twitter script completed.")
 
 if __name__ == '__main__':
     try:
@@ -165,4 +163,4 @@ if __name__ == '__main__':
         logger.error(f"Unexpected error: {e}")
         sys.exit(1)
     finally:
-        logger.info("Script completed.")
+        logger.info("Script finished.")
