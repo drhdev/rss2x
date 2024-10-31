@@ -57,18 +57,10 @@ python3 -m venv rss2x-env
 
 #### Activate the Virtual Environment
 
-Activate the virtual environment:
-
-- **On Linux/macOS:**
+Activate the virtual environment on Linux/macOS:
 
   ```bash
   source rss2x-env/bin/activate
-  ```
-
-- **On Windows:**
-
-  ```cmd
-  rss2x-env\Scripts\activate
   ```
 
 ### Install Dependencies
@@ -197,32 +189,3 @@ Contributions are welcome! Please open an issue or submit a pull request on [Git
 
 This project is licensed under the [MIT License](LICENSE).
 
----
-
-**Disclaimer:** This script is provided as-is without any warranty. Use it responsibly and ensure compliance with Twitter/X's Developer Agreement and Policies.
-
-# Appendix
-
-## Requirements
-
-The `requirements.txt` file contains the list of dependencies:
-
-```plaintext
-requests
-feedparser
-tweepy
-chardet
-python-dotenv
-```
-
-Install the dependencies using:
-
-```bash
-pip install -r requirements.txt
-```
-
-**Note:** Omitting version numbers means you will get the latest versions of these packages available at the time of installation.
-
-## Contact
-
-For any questions or support, please contact [drhdev](https://github.com/drhdev).
