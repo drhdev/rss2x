@@ -1,6 +1,6 @@
-# RSS to Twitter/X Script (`rss2x`)
+# RSS to Twitter/X Script (`rss2x.py`)
 
-`rss2x` is a Python script that automates the process of checking multiple RSS feeds and posting updates to corresponding Twitter/X accounts. The script retrieves the latest posts from specified RSS feeds and tweets them with the title, image, and link to the associated Twitter/X accounts.
+`rss2x.py` is a Python script that automates the process of checking multiple RSS feeds and posting updates to corresponding Twitter/X accounts. The script retrieves the latest posts from specified RSS feeds and tweets them with the title, image, and link to the associated Twitter/X accounts.
 
 **Features:**
 
