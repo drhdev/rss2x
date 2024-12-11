@@ -1,5 +1,4 @@
-requests
-feedparser
-tweepy
-chardet
-python-dotenv
+requests>=2.25.1
+feedparser>=6.0.8
+tweepy>=4.10.0
+chardet>=4.0.0
