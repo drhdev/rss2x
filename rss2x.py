@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Name: rss2x.py
-# Version: 0.0.1
+# Version: 0.0.2
 # Author: drhdev
 # Description: Checks multiple RSS feeds, sends tweets to corresponding Twitter accounts with title, image, and link, then exits.
 
@@ -72,8 +72,20 @@ def mark_entry_as_posted(conn: sqlite3.Connection, feed_url: str, entry_id: str)
     cursor.execute('INSERT INTO posted_entries (feed_url, entry_id) VALUES (?, ?)', (feed_url, entry_id))
     conn.commit()
 
+def check_credentials(credentials: Dict[str, str]) -> bool:
+    """Checks if all necessary credentials are available."""
+    required_keys = ['api_key', 'api_secret_key', 'access_token', 'access_token_secret']
+    missing_keys = [key for key in required_keys if not credentials.get(key)]
+    if missing_keys:
+        logger.error(f"Missing credentials for {credentials['account_name']}: {', '.join(missing_keys)}")
+        return False
+    return True
+
 def init_twitter_api(credentials: Dict[str, str]) -> Optional[tweepy.API]:
     """Initialize and return Tweepy API client for given credentials."""
+    if not check_credentials(credentials):
+        return None
+
     try:
         auth = tweepy.OAuth1UserHandler(
             credentials['api_key'],
@@ -249,4 +261,3 @@ if __name__ == '__main__':
         sys.exit(1)
     finally:
         logger.info("Script finished.")
-
