@@ -132,7 +132,7 @@ Each JSON configuration file should follow the structure below:
 
 #### Example `default.json` Configuration File
 
-Create a `default.json` file inside the `config/` directory with at least two RSS feeds:
+Create a `default.json` file inside the `config/` directory with RSS feeds:
 
 ```json
 {
