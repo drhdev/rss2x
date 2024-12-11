@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Name: rss2x.py
-# Version: 0.0.3
+# Version: 0.0.4
 # Author: drhdev
 # Description: Checks multiple RSS feeds, sends tweets to corresponding Twitter accounts with title, image, and link, then exits.
 
@@ -193,6 +193,8 @@ def post_to_twitter(api: tweepy.API, title: str, link: str, image_url: Optional[
         logger.info(f"Waiting {TWITTER_API_DELAY} seconds to simulate human delay.")
         time.sleep(TWITTER_API_DELAY)
 
+    except tweepy.errors.Forbidden as e:
+        logger.error(f"Forbidden: {e} - Likely due to API access level restrictions for account {account_name}")
     except tweepy.TweepyException as e:
         logger.error(f"Error posting to Twitter for {account_name}: {e}", exc_info=True)
 
