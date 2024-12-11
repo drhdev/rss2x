@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Name: rss2x.py
-# Version: 0.0.4
+# Version: 0.0.5
 # Author: drhdev
 # Description: Checks multiple RSS feeds, sends tweets to corresponding Twitter accounts with title, image, and link, then exits.
 
@@ -98,35 +98,25 @@ def init_twitter_api(credentials: Dict[str, str]) -> Optional[tweepy.API]:
         # Verify credentials
         api.verify_credentials()
         logger.info(f"Initialized Twitter API client for account: {credentials['account_name']}")
-        # Check for paid access level
-        is_paid_account = is_paid_api(credentials)
-        if not is_paid_account:
-            logger.info(f"Account {credentials['account_name']} is using the free API version with limited features.")
         return api
     except tweepy.TweepyException as e:
         logger.error(f"Failed to initialize Twitter API client for {credentials['account_name']}: {e}", exc_info=True)
         return None
 
-def is_paid_api(credentials: Dict[str, str]) -> bool:
-    """Determines if the API credentials belong to a paid account (based on feature access)."""
-    # This could be based on testing access to certain features (like media uploads)
-    # Here you would check if the account has the required access level for v1.1 features like media uploads.
-    # As a placeholder, this is set to False, assuming that free accounts will fail on these features.
+def is_paid_account(api: tweepy.API) -> bool:
+    """Determines if the account is a free-tier or elevated access X API account."""
     try:
-        # Perform a test that requires access to v1.1 endpoints (like media upload)
-        response = requests.get("https://api.twitter.com/2/tweets", headers={
-            "Authorization": f"Bearer {credentials['access_token']}"
-        })
-        if response.status_code == 200:
-            logger.debug(f"API response from {credentials['account_name']} indicates access to required v2 endpoints.")
-            return False  # This should be for free accounts
-        elif response.status_code == 403:
-            logger.debug(f"API response from {credentials['account_name']} indicates restricted access to v2 endpoints.")
-            return True  # Paid accounts may have access to more features
+        # Attempt to make a request that requires media upload support (v1.1 feature) to determine access level
+        media_test = api.media_upload("test.jpg")  # Media upload should succeed for elevated accounts
+        if media_test:
+            logger.info("This account is an elevated access account (supports media uploads).")
+            return True
+    except tweepy.errors.Forbidden:
+        logger.info("This account is a free-tier access account (text-only).")
         return False
     except Exception as e:
-        logger.error(f"Error checking paid API status for {credentials['account_name']}: {e}", exc_info=True)
-        return False
+        logger.error(f"Error checking account type: {e}", exc_info=True)
+    return False
 
 def get_latest_post(feed_url: str, conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
     """Checks the RSS feed and returns the latest unposted entry."""
@@ -155,6 +145,35 @@ def get_latest_post(feed_url: str, conn: sqlite3.Connection) -> Optional[Dict[st
         logger.error(f"Failed to parse RSS feed ({feed_url}): {e}", exc_info=True)
         return None
 
+def post_to_twitter(api: tweepy.API, title: str, link: str, image_url: Optional[str], account_name: str, is_paid_account: bool):
+    """Posts a tweet with the given title, link, and image."""
+    tweet_text = f"{title}\n{link}"
+    try:
+        if image_url and is_paid_account:
+            # Elevated accounts can post with media
+            filename = download_image(image_url)
+            if filename:
+                media = api.media_upload(filename)  # This requires v1.1
+                api.update_status(status=tweet_text, media_ids=[media.media_id_string])  # This requires v1.1
+                os.remove(filename)  # Clean up after posting
+                logger.debug(f"Posted tweet with image for {account_name}.")
+            else:
+                api.update_status(status=tweet_text)
+                logger.debug(f"Posted tweet without image for {account_name}.")
+        else:
+            # For free-tier accounts, only post text (no media)
+            api.update_status(status=tweet_text)  
+            logger.debug(f"Posted tweet without image for {account_name}.")
+
+        logger.info(f"Tweeted for {account_name}: {tweet_text}")
+
+        # Delay after each tweet to simulate human behavior
+        logger.info(f"Waiting {TWITTER_API_DELAY} seconds to simulate human delay.")
+        time.sleep(TWITTER_API_DELAY)
+
+    except tweepy.TweepyException as e:
+        logger.error(f"Error posting to Twitter for {account_name}: {e}", exc_info=True)
+
 def download_image(image_url: str) -> Optional[str]:
     """Downloads the image from the URL and returns the file path."""
     filename = os.path.join(BASE_DIR, 'temp_image.jpg')
@@ -168,35 +187,6 @@ def download_image(image_url: str) -> Optional[str]:
     except RequestException as e:
         logger.error(f"Failed to download image: {e}", exc_info=True)
         return None
-
-def post_to_twitter(api: tweepy.API, title: str, link: str, image_url: Optional[str], account_name: str, is_paid_account: bool):
-    """Posts a tweet with the given title, link, and image."""
-    tweet_text = f"{title}\n{link}"
-    try:
-        if image_url and is_paid_account:
-            filename = download_image(image_url)
-            if filename:
-                media = api.media_upload(filename)  # This requires v1.1
-                api.update_status(status=tweet_text, media_ids=[media.media_id_string])  # This requires v1.1
-                os.remove(filename)  # Clean up after posting
-                logger.debug(f"Posted tweet with image for {account_name}.")
-            else:
-                api.update_status(status=tweet_text)
-                logger.debug(f"Posted tweet without image for {account_name}.")
-        else:
-            api.update_status(status=tweet_text)  # Text-only tweet for free accounts
-            logger.debug(f"Posted tweet without image for {account_name}.")
-
-        logger.info(f"Tweeted for {account_name}: {tweet_text}")
-
-        # Delay after each tweet to simulate human behavior
-        logger.info(f"Waiting {TWITTER_API_DELAY} seconds to simulate human delay.")
-        time.sleep(TWITTER_API_DELAY)
-
-    except tweepy.errors.Forbidden as e:
-        logger.error(f"Forbidden: {e} - Likely due to API access level restrictions for account {account_name}")
-    except tweepy.TweepyException as e:
-        logger.error(f"Error posting to Twitter for {account_name}: {e}", exc_info=True)
 
 def main():
     logger.info("Starting RSS to Twitter script...")
@@ -234,8 +224,9 @@ def main():
         credentials = feed_config.get('twitter_credentials')
         api = init_twitter_api(credentials)
         if api:
-            is_paid_account = is_paid_api(credentials)
-            twitter_apis[feed_config['feed_url']] = (api, is_paid_account)
+            is_paid = is_paid_account(api)  # Check if the account is elevated
+            twitter_apis[feed_config['feed_url']] = (api, is_paid)
+            logger.info(f"Account {credentials['account_name']} is {'elevated access' if is_paid else 'free-tier access'}")
         else:
             logger.warning(f"Skipping feed {feed_config['feed_url']} due to Twitter API initialization failure.")
 
@@ -259,9 +250,6 @@ def main():
                         image_url = post.media_thumbnail[0].get('url')
                     elif 'enclosures' in post and post.enclosures:
                         image_url = post.enclosures[0].get('href')
-                    else:
-                        # Try to extract image from content (if any)
-                        pass  # You can implement HTML parsing here if needed
 
                     logger.info(f"New post found for feed {feed_url}: {title}")
                     post_to_twitter(api, title, link, image_url, account_name, is_paid_account)
@@ -290,4 +278,5 @@ if __name__ == '__main__':
         sys.exit(1)
     finally:
         logger.info("Script finished.")
+
 
