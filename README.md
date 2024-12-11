@@ -170,39 +170,83 @@ To add more Twitter/X accounts, create additional JSON files in the `config/` di
 
 **Note:** Ensure that each JSON file has a unique `account_name` and valid Twitter/X API credentials.
 
+
 ### Obtaining Twitter/X API Credentials
 
-To retrieve API credentials for Twitter/X:
+To retrieve API credentials for Twitter/X, follow these steps:
 
 1. **Create a Twitter/X Developer Account:**
 
-   - Visit the [Twitter Developer Portal](https://developer.twitter.com/) and sign up for a developer account.
-   - Apply for Elevated access if necessary.
+   - Visit the [Twitter Developer Portal](https://developer.twitter.com/).
+   - Click on **Sign Up** or **Log In** if you already have an account.
+   - Complete the sign-up process by providing your details and accepting the terms.
+   - After signing in, navigate to the **Developer Portal**.
 
-2. **Create a New App:**
+2. **Apply for Elevated Access (if necessary):**
 
-   - Navigate to the "Projects & Apps" section and create a new app.
-   - Fill in the required details.
+   - If you plan to use features like posting tweets with media (images, videos), you may need Elevated access.
+   - In the Developer Portal, go to the **Projects & Apps** section, and check your app's access level.
+   - If your account is on the Free tier, apply for Elevated access by filling out the required form with your use case.
 
-3. **Generate API Keys and Tokens:**
+3. **Create a New App:**
 
-   - After creating the app, navigate to the "Keys and tokens" or "Authentication Tokens" section.
-   - Generate the following credentials:
-     - **API Key**
-     - **API Secret Key**
-     - **Access Token**
-     - **Access Token Secret**
+   - In the **Projects & Apps** section, click on **Create App**.
+   - Enter the following details:
+     - **App Name**: Choose a unique name for your app.
+     - **Use Case**: Describe how you plan to use the app (e.g., "Automate posting tweets from RSS feeds").
+   - Select a project for the app or create a new project if prompted.
+   - Click **Next** to proceed.
 
-4. **Set Up Permissions:**
+4. **Set Up Authentication:**
 
-   - Ensure that your app has the necessary permissions to read and write tweets.
-   - Update your app's permissions in the "User authentication settings" to include `Read and Write` access.
+   - After creating the app, go to the app's **Settings**.
+   - Under **User Authentication Settings**, click **Set Up**.
+   - Fill in the following details:
+     - **App Permissions**: Select **Read and Write**.
+     - **Type of App**: Choose **Web App, Automated App, or Bot**.
+     - **Callback URL**: Enter `http://localhost/` (you can update this later if needed).
+     - **Website URL**: Provide a valid website URL (can be your personal website or project URL).
+   - Save the changes.
 
-5. **Copy Credentials to JSON Config File:**
+5. **Generate API Keys and Tokens:**
 
-   - Place the generated credentials into the appropriate JSON configuration file under the respective fields.
+   - Go to the **Keys and Tokens** or **Authentication Tokens** section.
+   - Click **Generate** or **Regenerate** to create the following credentials:
+     - **API Key** and **API Secret Key**: These are used to authenticate your app with the Twitter API.
+     - **Access Token** and **Access Token Secret**: These are used to authenticate the user account that the app will act on behalf of.
+   - Save these credentials securely, as they will only be shown once.
 
-**Important:** Keep your API credentials secure and never share them publicly.
+6. **Copy Credentials to JSON Config File:**
+
+   - Place the generated credentials into the appropriate JSON configuration file for your script. The structure should look like this:
+
+     ```json
+     {
+         "account_name": "Account1",
+         "api_key": "YOUR_API_KEY",
+         "api_secret_key": "YOUR_API_SECRET_KEY",
+         "access_token": "YOUR_ACCESS_TOKEN",
+         "access_token_secret": "YOUR_ACCESS_TOKEN_SECRET",
+         "rss_feeds": [
+             "https://example.com/rss1",
+             "https://example.com/rss2"
+         ],
+         "delay_seconds": 30
+     }
+     ```
+
+   - Replace `YOUR_API_KEY`, `YOUR_API_SECRET_KEY`, `YOUR_ACCESS_TOKEN`, and `YOUR_ACCESS_TOKEN_SECRET` with the values you generated.
+
+7. **Test the Credentials:**
+
+   - Use your script to test the credentials by running a small test, such as retrieving your account details or posting a test tweet.
+
+**Important Notes:**
+
+- **Secure Your Credentials:** Never share your API credentials publicly or store them in unsecured locations like public repositories.
+- **Callback URL:** For simple scripts like `rss2x.py`, the callback URL can be set to `http://localhost/`. This is sufficient for most cases unless you integrate more advanced features like user authentication workflows.
+- **Permissions:** Ensure that your app permissions include **Read and Write** access to allow posting tweets. Without these permissions, the app will not be able to post on your behalf.
+- **Elevated Access:** If you encounter errors related to API access or rate limits, consider applying for Elevated access in the Developer Portal.
 
 ## Usage
 
@@ -218,9 +262,9 @@ python rss2x.py
 - Logs are written to `rss2x.log` in the project directory.
 - Use the `-v` or `--verbose` flag to enable verbose output in the console:
 
-  ```bash
-  python rss2x.py --verbose
-  ```
+```bash
+python rss2x.py --verbose
+```
 
 ## Logging
 
