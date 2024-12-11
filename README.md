@@ -1,14 +1,15 @@
 # RSS to Twitter/X Script (`rss2x.py`)
 
-`rss2x.py` is a Python script that automates the process of checking multiple RSS feeds and posting updates to corresponding Twitter/X accounts. The script retrieves the latest posts from specified RSS feeds and tweets them with the title, image, and link to the associated Twitter/X accounts.
+`rss2x.py` is a Python script that automates the process of checking multiple RSS feeds and posting updates to corresponding Twitter/X accounts. The script retrieves the latest posts from specified RSS feeds and tweets them with a link to the associated content. If the linked page has Twitter Cards enabled, the tweet will display a preview of the URL along with the page title.
 
 **Features:**
 
-- Supports multiple RSS feeds and Twitter/X accounts
+- Supports multiple RSS feeds and Twitter/X accounts through JSON configuration files
 - Handles various RSS feed formats and encodings
 - Robust error handling and detailed logging
 - Utilizes a SQLite database to track posted entries and prevent duplicates
 - Configurable delay between API calls to mimic human behavior
+- Automatically generates link previews using Twitter Cards
 
 ## Table of Contents
 
@@ -18,9 +19,10 @@
   - [Set Up a Virtual Environment](#set-up-a-virtual-environment)
   - [Install Dependencies](#install-dependencies)
 - [Configuration](#configuration)
-  - [Environment Variables](#environment-variables)
+  - [JSON Configuration Files](#json-configuration-files)
   - [Obtaining Twitter/X API Credentials](#obtaining-twitterx-api-credentials)
 - [Usage](#usage)
+- [Logging](#logging)
 - [Limitations](#limitations)
 - [Contributing](#contributing)
 - [License](#license)
@@ -59,9 +61,15 @@ python3 -m venv rss2x-env
 
 Activate the virtual environment on Linux/macOS:
 
-  ```bash
-  source rss2x-env/bin/activate
-  ```
+```bash
+source rss2x-env/bin/activate
+```
+
+On Windows:
+
+```bash
+rss2x-env\Scripts\activate
+```
 
 ### Install Dependencies
 
@@ -74,39 +82,93 @@ pip install -r requirements.txt
 
 ## Configuration
 
-### Environment Variables
+### JSON Configuration Files
 
-The script uses a `.env` file to load environment variables. Create a `.env` file in the project's root directory:
+The script uses JSON configuration files to manage Twitter/X account credentials and associated RSS feeds. Each Twitter/X account should have its own JSON file in the `config/` directory. These files include all necessary credentials, a list of RSS feed URLs, and a delay setting between posts to comply with Twitter's rate limits.
 
-```bash
-cd /home/user/python/rss2x
-touch .env
+#### Directory Structure
+
+Ensure your project directory looks like this:
+
+```
+/path/to/your/project/
+│
+├── rss2x.py
+├── requirements.txt
+├── rss2x.log
+├── posted_entries.db
+└── config/
+    ├── default.json
+    ├── account2.json
+    └── ... (additional JSON config files)
 ```
 
-Populate the `.env` file with your RSS feed URLs and Twitter/X API credentials:
+#### JSON File Structure
 
-```ini
-# RSS Feed URLs
-FEED1_URL=https://example.com/feed1.rss
-FEED2_URL=https://example.com/feed2.rss
+Each JSON configuration file should follow the structure below:
 
-# Twitter/X Account 1 Credentials
-TWITTER1_API_KEY=your_api_key
-TWITTER1_API_SECRET_KEY=your_api_secret_key
-TWITTER1_ACCESS_TOKEN=your_access_token
-TWITTER1_ACCESS_TOKEN_SECRET=your_access_token_secret
-
-# Twitter/X Account 2 Credentials
-TWITTER2_API_KEY=your_api_key
-TWITTER2_API_SECRET_KEY=your_api_secret_key
-TWITTER2_ACCESS_TOKEN=your_access_token
-TWITTER2_ACCESS_TOKEN_SECRET=your_access_token_secret
-
-# Optional: Delay between Twitter API calls (in seconds)
-TWITTER_API_DELAY=30
+```json
+{
+    "account_name": "Account1",
+    "api_key": "YOUR_API_KEY",
+    "api_secret_key": "YOUR_API_SECRET_KEY",
+    "access_token": "YOUR_ACCESS_TOKEN",
+    "access_token_secret": "YOUR_ACCESS_TOKEN_SECRET",
+    "rss_feeds": [
+        "https://example.com/rss1",
+        "https://example.com/rss2"
+    ],
+    "delay_seconds": 30
+}
 ```
 
-**Note:** Replace the placeholders with your actual RSS feed URLs and Twitter/X API credentials.
+- **`account_name`**: A unique name for the Twitter/X account.
+- **`api_key`**: Your Twitter/X API Key.
+- **`api_secret_key`**: Your Twitter/X API Secret Key.
+- **`access_token`**: Your Twitter/X Access Token.
+- **`access_token_secret`**: Your Twitter/X Access Token Secret.
+- **`rss_feeds`**: A list of RSS feed URLs that the account will monitor.
+- **`delay_seconds`** *(optional)*: Delay in seconds between posts to prevent hitting Twitter's rate limits. Defaults to `30` seconds if not specified.
+
+#### Example `default.json` Configuration File
+
+Create a `default.json` file inside the `config/` directory with at least two RSS feeds:
+
+```json
+{
+    "account_name": "Account1",
+    "api_key": "YOUR_API_KEY",
+    "api_secret_key": "YOUR_API_SECRET_KEY",
+    "access_token": "YOUR_ACCESS_TOKEN",
+    "access_token_secret": "YOUR_ACCESS_TOKEN_SECRET",
+    "rss_feeds": [
+        "https://example.com/rss1",
+        "https://example.com/rss2"
+    ],
+    "delay_seconds": 30
+}
+```
+
+#### Adding Additional Accounts
+
+To add more Twitter/X accounts, create additional JSON files in the `config/` directory with the same structure. For example, `account2.json`:
+
+```json
+{
+    "account_name": "Account2",
+    "api_key": "YOUR_API_KEY_2",
+    "api_secret_key": "YOUR_API_SECRET_KEY_2",
+    "access_token": "YOUR_ACCESS_TOKEN_2",
+    "access_token_secret": "YOUR_ACCESS_TOKEN_SECRET_2",
+    "rss_feeds": [
+        "https://example.com/rss3",
+        "https://example.com/rss4"
+    ],
+    "delay_seconds": 45
+}
+```
+
+**Note:** Ensure that each JSON file has a unique `account_name` and valid Twitter/X API credentials.
 
 ### Obtaining Twitter/X API Credentials
 
@@ -136,9 +198,9 @@ To retrieve API credentials for Twitter/X:
    - Ensure that your app has the necessary permissions to read and write tweets.
    - Update your app's permissions in the "User authentication settings" to include `Read and Write` access.
 
-5. **Copy Credentials to `.env` File:**
+5. **Copy Credentials to JSON Config File:**
 
-   - Place the generated credentials into the `.env` file under the appropriate variables.
+   - Place the generated credentials into the appropriate JSON configuration file under the respective fields.
 
 **Important:** Keep your API credentials secure and never share them publicly.
 
@@ -150,7 +212,9 @@ Run the script:
 python rss2x.py
 ```
 
-- The script will check each configured RSS feed and post new entries to the corresponding Twitter/X accounts.
+- The script will process each JSON configuration file in the `config/` directory in alphabetical order.
+- For each account, it will check the specified RSS feeds and post new entries as tweets containing only the link.
+- If the linked page has Twitter Cards enabled, the tweet will display a preview with the page title and other metadata.
 - Logs are written to `rss2x.log` in the project directory.
 - Use the `-v` or `--verbose` flag to enable verbose output in the console:
 
@@ -158,26 +222,53 @@ python rss2x.py
   python rss2x.py --verbose
   ```
 
+## Logging
+
+- **Log File:** All logs are written to `rss2x.log` in the project directory.
+- **Verbose Mode:** When running the script with the `-v` or `--verbose` flag, logs will also be output to the console.
+- **Log Details:**
+  - **INFO:** General information about the script's operations, such as processing accounts and feeds, and successful tweets.
+  - **DEBUG:** Detailed information for debugging, including new entries found and tweet posting status.
+  - **ERROR:** Errors encountered during execution, such as failed API calls or issues with RSS feed parsing.
+  
+**Example Log Entries:**
+
+```
+2024-12-12 04:27:25,402 - rss2x - INFO - Starting RSS to Twitter script...
+2024-12-12 04:27:25,404 - rss2x - INFO - All credentials are available for Account1
+2024-12-12 04:27:25,779 - rss2x - INFO - Initialized Twitter API client for account: Account1
+2024-12-12 04:27:26,105 - rss2x - INFO - Account Account1 is using free-tier access.
+2024-12-12 04:27:26,442 - rss2x - ERROR - Missing credentials for Account2: api_key, api_secret_key, access_token, access_token_secret
+2024-12-12 04:27:26,442 - rss2x - WARNING - Skipping feed None due to Twitter API initialization failure.
+2024-12-12 04:27:26,908 - rss2x - INFO - Processing feed: https://xxx.com/RSS
+2024-12-12 04:27:27,232 - rss2x - INFO - Tweeted for Account1: https://example.com/new-post
+2024-12-12 04:27:27,232 - rss2x - INFO - Waiting 30 seconds to simulate human delay.
+```
+
 ## Limitations
 
 - **Twitter/X API Access:**
-
-  - As of recent updates, Twitter/X has introduced changes to its API access policies.
+  
   - Ensure that your developer account has the necessary permissions and access levels.
   - Some API endpoints may be restricted or require elevated access tiers.
-
+  
 - **Rate Limits:**
-
-  - The script includes a configurable delay (`TWITTER_API_DELAY`) between API calls to comply with rate limits and mimic human behavior.
+  
+  - The script includes a configurable delay (`delay_seconds`) between API calls to comply with rate limits and mimic human behavior.
   - Be aware of Twitter/X's rate limits to avoid exceeding them.
-
+  
 - **RSS Feed Variability:**
-
+  
   - RSS feeds may vary in format and content.
   - The script attempts to handle common formats and encodings but may need adjustments for specific feeds.
+  
+- **Twitter Cards:**
+  
+  - For link previews to appear, the target web pages of your RSS feeds must have Twitter Cards enabled.
+  - Without Twitter Cards, tweets containing only links may not display previews, and users will see just the link text.
 
 - **Error Handling:**
-
+  
   - While the script includes robust error handling, unexpected issues may still occur.
   - Check the logs (`rss2x.log`) for detailed error information.
 
@@ -188,4 +279,3 @@ Contributions are welcome! Please open an issue or submit a pull request on [Git
 ## License
 
 This project is licensed under the [GNU GENERAL PUBLIC LICENSE](LICENSE).
-
