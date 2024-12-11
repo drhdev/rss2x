@@ -50,26 +50,21 @@ It's recommended to use a virtual environment to manage dependencies.
 
 #### Create a Virtual Environment
 
-Navigate to your preferred directory (e.g., `/home/user/python`) and create a virtual environment:
+Navigate to your preferred directory (e.g., `/home/user/python/rss2x`) and create a virtual environment:
 
 ```bash
-cd /home/user/python
-python3 -m venv rss2x-env
+cd /home/user/python/rss2x
+python3 -m venv venv
 ```
 
 #### Activate the Virtual Environment
 
-Activate the virtual environment on Linux/macOS:
+Activate the virtual environment:
 
 ```bash
-source rss2x-env/bin/activate
+source venv/bin/activate
 ```
 
-On Windows:
-
-```bash
-rss2x-env\Scripts\activate
-```
 
 ### Install Dependencies
 
@@ -95,7 +90,7 @@ Ensure your project directory looks like this:
 │
 ├── rss2x.py
 ├── requirements.txt
-├── rss2x.log
+├── readme.MD
 ├── posted_entries.db
 └── config/
     ├── default.json
@@ -284,7 +279,7 @@ python rss2x.py --verbose
 2024-12-12 04:27:26,105 - rss2x - INFO - Account Account1 is using free-tier access.
 2024-12-12 04:27:26,442 - rss2x - ERROR - Missing credentials for Account2: api_key, api_secret_key, access_token, access_token_secret
 2024-12-12 04:27:26,442 - rss2x - WARNING - Skipping account Account2 due to invalid API credentials.
-2024-12-12 04:27:26,908 - rss2x - INFO - Processing feed: https://xxx.com/RSS
+2024-12-12 04:27:26,908 - rss2x - INFO - Processing feed: https://example.com/rSS
 2024-12-12 04:27:27,232 - rss2x - INFO - Tweeted for Account1: https://example.com/new-post
 2024-12-12 04:27:27,232 - rss2x - INFO - Waiting 30 seconds to simulate human delay.
 ```
