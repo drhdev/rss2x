@@ -1,0 +1,12 @@
+{
+    "account_name": "Account1",
+    "api_key": "YOUR_API_KEY",
+    "api_secret_key": "YOUR_API_SECRET_KEY",
+    "access_token": "YOUR_ACCESS_TOKEN",
+    "access_token_secret": "YOUR_ACCESS_TOKEN_SECRET",
+    "rss_feeds": [
+        "https://example.com/rss1",
+        "https://example.com/rss2"
+    ],
+    "delay_seconds": 30
+}
