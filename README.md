@@ -132,7 +132,7 @@ Each JSON configuration file should follow the structure below:
 
 #### Example `default.json` Configuration File
 
-Create a `default.json` file inside the `config/` directory with RSS feeds:
+Create a `default.json` file inside the `config/` directory with at least two RSS feeds:
 
 ```json
 {
@@ -230,7 +230,7 @@ python rss2x.py
   - **INFO:** General information about the script's operations, such as processing accounts and feeds, and successful tweets.
   - **DEBUG:** Detailed information for debugging, including new entries found and tweet posting status.
   - **ERROR:** Errors encountered during execution, such as failed API calls or issues with RSS feed parsing.
-  
+
 **Example Log Entries:**
 
 ```
@@ -239,7 +239,7 @@ python rss2x.py
 2024-12-12 04:27:25,779 - rss2x - INFO - Initialized Twitter API client for account: Account1
 2024-12-12 04:27:26,105 - rss2x - INFO - Account Account1 is using free-tier access.
 2024-12-12 04:27:26,442 - rss2x - ERROR - Missing credentials for Account2: api_key, api_secret_key, access_token, access_token_secret
-2024-12-12 04:27:26,442 - rss2x - WARNING - Skipping feed None due to Twitter API initialization failure.
+2024-12-12 04:27:26,442 - rss2x - WARNING - Skipping account Account2 due to invalid API credentials.
 2024-12-12 04:27:26,908 - rss2x - INFO - Processing feed: https://xxx.com/RSS
 2024-12-12 04:27:27,232 - rss2x - INFO - Tweeted for Account1: https://example.com/new-post
 2024-12-12 04:27:27,232 - rss2x - INFO - Waiting 30 seconds to simulate human delay.
@@ -251,17 +251,17 @@ python rss2x.py
   
   - Ensure that your developer account has the necessary permissions and access levels.
   - Some API endpoints may be restricted or require elevated access tiers.
-  
+
 - **Rate Limits:**
   
   - The script includes a configurable delay (`delay_seconds`) between API calls to comply with rate limits and mimic human behavior.
   - Be aware of Twitter/X's rate limits to avoid exceeding them.
-  
+
 - **RSS Feed Variability:**
   
   - RSS feeds may vary in format and content.
   - The script attempts to handle common formats and encodings but may need adjustments for specific feeds.
-  
+
 - **Twitter Cards:**
   
   - For link previews to appear, the target web pages of your RSS feeds must have Twitter Cards enabled.
