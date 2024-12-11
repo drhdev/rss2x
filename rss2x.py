@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Name: rss2x.py
-# Version: 0.0.2
+# Version: 0.0.3
 # Author: drhdev
 # Description: Checks multiple RSS feeds, sends tweets to corresponding Twitter accounts with title, image, and link, then exits.
 
@@ -79,6 +79,7 @@ def check_credentials(credentials: Dict[str, str]) -> bool:
     if missing_keys:
         logger.error(f"Missing credentials for {credentials['account_name']}: {', '.join(missing_keys)}")
         return False
+    logger.info(f"All credentials are available for {credentials['account_name']}")
     return True
 
 def init_twitter_api(credentials: Dict[str, str]) -> Optional[tweepy.API]:
@@ -97,10 +98,35 @@ def init_twitter_api(credentials: Dict[str, str]) -> Optional[tweepy.API]:
         # Verify credentials
         api.verify_credentials()
         logger.info(f"Initialized Twitter API client for account: {credentials['account_name']}")
+        # Check for paid access level
+        is_paid_account = is_paid_api(credentials)
+        if not is_paid_account:
+            logger.info(f"Account {credentials['account_name']} is using the free API version with limited features.")
         return api
     except tweepy.TweepyException as e:
         logger.error(f"Failed to initialize Twitter API client for {credentials['account_name']}: {e}", exc_info=True)
         return None
+
+def is_paid_api(credentials: Dict[str, str]) -> bool:
+    """Determines if the API credentials belong to a paid account (based on feature access)."""
+    # This could be based on testing access to certain features (like media uploads)
+    # Here you would check if the account has the required access level for v1.1 features like media uploads.
+    # As a placeholder, this is set to False, assuming that free accounts will fail on these features.
+    try:
+        # Perform a test that requires access to v1.1 endpoints (like media upload)
+        response = requests.get("https://api.twitter.com/2/tweets", headers={
+            "Authorization": f"Bearer {credentials['access_token']}"
+        })
+        if response.status_code == 200:
+            logger.debug(f"API response from {credentials['account_name']} indicates access to required v2 endpoints.")
+            return False  # This should be for free accounts
+        elif response.status_code == 403:
+            logger.debug(f"API response from {credentials['account_name']} indicates restricted access to v2 endpoints.")
+            return True  # Paid accounts may have access to more features
+        return False
+    except Exception as e:
+        logger.error(f"Error checking paid API status for {credentials['account_name']}: {e}", exc_info=True)
+        return False
 
 def get_latest_post(feed_url: str, conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
     """Checks the RSS feed and returns the latest unposted entry."""
@@ -143,27 +169,27 @@ def download_image(image_url: str) -> Optional[str]:
         logger.error(f"Failed to download image: {e}", exc_info=True)
         return None
 
-def post_to_twitter(api: tweepy.API, title: str, link: str, image_url: Optional[str], account_name: str):
+def post_to_twitter(api: tweepy.API, title: str, link: str, image_url: Optional[str], account_name: str, is_paid_account: bool):
     """Posts a tweet with the given title, link, and image."""
     tweet_text = f"{title}\n{link}"
     try:
-        if image_url:
+        if image_url and is_paid_account:
             filename = download_image(image_url)
             if filename:
-                media = api.media_upload(filename)
-                api.update_status(status=tweet_text, media_ids=[media.media_id_string])
+                media = api.media_upload(filename)  # This requires v1.1
+                api.update_status(status=tweet_text, media_ids=[media.media_id_string])  # This requires v1.1
                 os.remove(filename)  # Clean up after posting
                 logger.debug(f"Posted tweet with image for {account_name}.")
             else:
                 api.update_status(status=tweet_text)
                 logger.debug(f"Posted tweet without image for {account_name}.")
         else:
-            api.update_status(status=tweet_text)
+            api.update_status(status=tweet_text)  # Text-only tweet for free accounts
             logger.debug(f"Posted tweet without image for {account_name}.")
 
         logger.info(f"Tweeted for {account_name}: {tweet_text}")
 
-        # Delay after each tweet to mimic human behavior
+        # Delay after each tweet to simulate human behavior
         logger.info(f"Waiting {TWITTER_API_DELAY} seconds to simulate human delay.")
         time.sleep(TWITTER_API_DELAY)
 
@@ -206,14 +232,15 @@ def main():
         credentials = feed_config.get('twitter_credentials')
         api = init_twitter_api(credentials)
         if api:
-            twitter_apis[feed_config['feed_url']] = api
+            is_paid_account = is_paid_api(credentials)
+            twitter_apis[feed_config['feed_url']] = (api, is_paid_account)
         else:
             logger.warning(f"Skipping feed {feed_config['feed_url']} due to Twitter API initialization failure.")
 
     # Process each feed
     for feed_config in feeds:
         feed_url = feed_config['feed_url']
-        api = twitter_apis.get(feed_url)
+        api, is_paid_account = twitter_apis.get(feed_url, (None, False))
         account_name = feed_config['twitter_credentials']['account_name']
 
         if api:
@@ -235,7 +262,7 @@ def main():
                         pass  # You can implement HTML parsing here if needed
 
                     logger.info(f"New post found for feed {feed_url}: {title}")
-                    post_to_twitter(api, title, link, image_url, account_name)
+                    post_to_twitter(api, title, link, image_url, account_name, is_paid_account)
                     # Mark the entry as posted
                     entry_id = post.get('id') or link
                     mark_entry_as_posted(conn, feed_url, entry_id)
@@ -261,3 +288,4 @@ if __name__ == '__main__':
         sys.exit(1)
     finally:
         logger.info("Script finished.")
+
