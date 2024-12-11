@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # Name: rss2x.py
-# Version: 0.1
+# Version: 0.1.1
 # Author: drhdev
-# Description: Checks multiple RSS feeds, sends tweets to corresponding Twitter accounts with link previews via Twitter Cards, then exits.
+# Description: Checks multiple RSS feeds, sends tweets to corresponding Twitter/X accounts with link previews via Twitter Cards, then exits.
 
 import os
 import sys
@@ -125,47 +125,57 @@ def check_credentials(credentials: Dict[str, str]) -> bool:
     logger.info(f"All credentials are available for {credentials['account_name']}")
     return True
 
-def init_twitter_api(credentials: Dict[str, str]) -> Optional[tweepy.API]:
-    """Initialize and return Tweepy API client for given credentials."""
+def init_twitter_client(credentials: Dict[str, str]) -> Optional[tweepy.Client]:
+    """Initialize and return Tweepy Client for given credentials."""
     if not check_credentials(credentials):
         return None
 
     try:
-        auth = tweepy.OAuth1UserHandler(
-            credentials['api_key'],
-            credentials['api_secret_key'],
-            credentials['access_token'],
-            credentials['access_token_secret']
+        client = tweepy.Client(
+            consumer_key=credentials['api_key'],
+            consumer_secret=credentials['api_secret_key'],
+            access_token=credentials['access_token'],
+            access_token_secret=credentials['access_token_secret'],
+            wait_on_rate_limit=True
         )
-        api = tweepy.API(auth, wait_on_rate_limit=True)
-        # Verify credentials
-        api.verify_credentials()
-        logger.info(f"Initialized Twitter API client for account: {credentials['account_name']}")
-        return api
+        # Verify credentials by fetching user info
+        user = client.get_user(username=credentials['account_name'])
+        if user:
+            logger.info(f"Initialized Twitter API client for account: {credentials['account_name']}")
+            return client
+        else:
+            logger.error(f"Failed to verify credentials for account: {credentials['account_name']}")
+            return None
     except tweepy.TweepyException as e:
         logger.error(f"Failed to initialize Twitter API client for {credentials['account_name']}: {e}", exc_info=True)
         return None
 
-def is_elevated_access(api: tweepy.API) -> bool:
+def is_elevated_access(client: tweepy.Client) -> bool:
     """
-    Determines if the account has elevated access by attempting to upload a small, temporary media file.
-    Returns True if media upload is successful, indicating elevated access.
-    Returns False if media upload is forbidden or fails.
+    Determines if the account has elevated access by attempting to perform an action that requires elevated permissions.
+    Currently, elevated access is required for media uploads. This function attempts a media upload and then deletes the tweet.
     """
     test_image_path = BASE_DIR / 'temp_test_image.jpg'
     try:
         # Create a small temporary GIF image
         with test_image_path.open('wb') as f:
             f.write(b'\x47\x49\x46\x38\x39\x61\x02\x00\x01\x00\x80\x00\x00\x00\x00\x00\xFF\xFF\xFF\x21\xF9\x04\x01\x00\x00\x00\x00\x2C\x00\x00\x00\x00\x02\x00\x01\x00\x00\x02\x02\x4C\x01\x00\x3B')
-        # Attempt to upload the image
-        media = api.media_upload(str(test_image_path))
+        
+        # Attempt to upload the media
+        media = client.upload_media(filename=str(test_image_path), media_category='tweet_image')
+        
         # Attempt to post a temporary tweet with the uploaded media
-        tweet = api.update_status(status="Temporary media upload test.", media_ids=[media.media_id_string])
-        # Immediately delete the temporary tweet to avoid clutter
-        api.destroy_status(tweet.id)
-        logger.info("Elevated access confirmed for media uploads.")
-        return True
-    except tweepy.errors.Forbidden:
+        response = client.create_tweet(text="Temporary media upload test.", media_ids=[media.media_id])
+        if response.data:
+            tweet_id = response.data['id']
+            # Delete the temporary tweet to avoid clutter
+            client.delete_tweet(id=tweet_id)
+            logger.info("Elevated access confirmed for media uploads.")
+            return True
+        else:
+            logger.info("This account is a free-tier access account (text-only).")
+            return False
+    except tweepy.Forbidden as e:
         logger.info("This account is a free-tier access account (text-only).")
         return False
     except tweepy.TweepyException as e:
@@ -202,35 +212,18 @@ def get_latest_post(feed_url: str, conn: sqlite3.Connection) -> Optional[Dict[st
         logger.error(f"Failed to parse RSS feed ({feed_url}): {e}", exc_info=True)
         return None
 
-def download_image(image_url: str) -> Optional[Path]:
-    """Downloads the image from the URL and returns the file path."""
-    filename = BASE_DIR / f'temp_image_{int(time.time())}.jpg'
-    try:
-        with requests.get(image_url, timeout=10, stream=True) as response:
-            response.raise_for_status()
-            with filename.open('wb') as f:
-                for chunk in response.iter_content(8192):
-                    f.write(chunk)
-        return filename
-    except RequestException as e:
-        logger.error(f"Failed to download image from {image_url}: {e}", exc_info=True)
-        return None
-
-def post_to_twitter(api: tweepy.API, link: str, account_name: str, delay_seconds: int, elevated: bool):
+def post_to_twitter(client: tweepy.Client, link: str, account_name: str, delay_seconds: int, elevated: bool):
     """Posts a tweet with the given link."""
     tweet_text = f"{link}"
     try:
-        if elevated and link:
-            # Elevated accounts can attempt to include media if needed in the future
-            # Currently, only posting the link as per the user's request
-            api.update_status(status=tweet_text)
-            logger.debug(f"Posted tweet with link for {account_name}.")
+        response = client.create_tweet(text=tweet_text)
+        if response.data:
+            tweet_id = response.data['id']
+            logger.debug(f"Posted tweet for {account_name}: {tweet_text} (Tweet ID: {tweet_id})")
+            logger.info(f"Tweeted for {account_name}: {tweet_text}")
         else:
-            # For free-tier accounts, only post the link
-            api.update_status(status=tweet_text)
-            logger.debug(f"Posted tweet with link for {account_name} (free-tier).")
-
-        logger.info(f"Tweeted for {account_name}: {tweet_text}")
+            logger.error(f"Failed to post tweet for {account_name}: No response data.")
+        
         logger.info(f"Waiting {delay_seconds} seconds to simulate human delay.")
         time.sleep(delay_seconds)
     except tweepy.TweepyException as e:
@@ -257,13 +250,13 @@ def main():
         logger.info(f"Processing account: {account_name} with {len(feeds)} feed(s).")
 
         # Initialize Twitter API client
-        api = init_twitter_api(config)
-        if not api:
+        client = init_twitter_client(config)
+        if not client:
             logger.warning(f"Skipping account {account_name} due to invalid API credentials.")
             continue
 
         # Determine if the account has elevated access
-        elevated = is_elevated_access(api)
+        elevated = is_elevated_access(client)
         access_type = "elevated access" if elevated else "free-tier access"
         logger.info(f"Account {account_name} is using {access_type}.")
 
@@ -275,7 +268,7 @@ def main():
                 link = post.get('link', '')
                 logger.info(f"New post found for feed {feed_url}: {link}")
                 # Post only the link to Twitter
-                post_to_twitter(api, link, account_name, delay_seconds, elevated)
+                post_to_twitter(client, link, account_name, delay_seconds, elevated)
                 # Mark the entry as posted
                 entry_id = post.get('id') or link
                 mark_entry_as_posted(conn, feed_url, entry_id)
