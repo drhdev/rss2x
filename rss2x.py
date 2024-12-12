@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Name: rss2x.py
-# Version: 0.1.1
+# Version: 0.1.2
 # Author: drhdev
 # Description: Checks multiple RSS feeds, sends tweets to corresponding Twitter/X accounts with link previews via Twitter Cards, then exits.
 
@@ -146,9 +146,13 @@ def init_twitter_client(credentials: Dict[str, str]) -> Optional[tweepy.Client]:
         else:
             logger.error(f"Failed to verify credentials for account: {credentials['account_name']}")
             return None
-    except tweepy.TweepyException as e:
-        logger.error(f"Failed to initialize Twitter API client for {credentials['account_name']}: {e}", exc_info=True)
-        return None
+    except tweepy.errors.Unauthorized:
+        logger.error(f"401 Unauthorized: Invalid credentials for account: {credentials['account_name']}. Please check your API keys and tokens.")
+    except tweepy.errors.Forbidden:
+        logger.error(f"403 Forbidden: Access denied for account: {credentials['account_name']}. Ensure the app has the required permissions.")
+    except Exception as e:
+        logger.error(f"Unexpected error initializing Twitter API client for {credentials['account_name']}: {e}", exc_info=True)
+    return None
 
 def is_elevated_access(client: tweepy.Client) -> bool:
     """
